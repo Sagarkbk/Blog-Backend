@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User{
+  id Int @id @default(autoincrement())
+  username String
+  email String @unique
+  password String
+  blogs Blog[]
+  followers Follow[] @relation("follower")
+  following Follow[] @relation("following")
+  comments Comment[]
+  blogLikes BlogLike[]
+  commentLikes CommentLike[]
+}
+
+model Blog{
+  id Int @id @default(autoincrement())
+  authorId Int
+  title String
+  content String
+  tag String
+  createdAt DateTime @default(now())
+  updatedAt DateTime?
+  published Boolean @default(false)
+  author User @relation(fields: [authorId], references: [id])
+  comments Comment[]
+  likes BlogLike[]
+}
+
+model Follow {
+  followerId  Int
+  follower    User @relation("follower", fields: [followerId], references: [id])
+  followingId Int
+  following   User @relation("following", fields: [followingId], references: [id])
+
+  @@id([followerId, followingId])
+  @@unique([followerId, followingId])
+}
+
+model Comment{
+  id Int @id @default(autoincrement())
+  comment String
+  createdAt DateTime @default(now())
+  commentedById Int
+  commenter User @relation(fields: [commentedById], references: [id])
+  blogId Int
+  blog Blog @relation(fields: [blogId], references: [id])
+  likes CommentLike[]
+}
+
+model BlogLike{
+  id Int @id @default(autoincrement())
+  likedById Int
+  blogId Int
+  createdAt DateTime @default(now())
+  user User @relation(fields: [likedById], references: [id])
+  blog Blog @relation(fields: [blogId], references: [id])
+
+  @@unique([likedById, blogId])
+}
+
+model CommentLike{
+  id Int @id @default(autoincrement())
+  likedById Int
+  commentId Int
+  createdAt DateTime @default(now())
+  user User @relation(fields: [likedById], references: [id])
+  comment Comment @relation(fields: [commentId], references: [id])
+
+  @@unique([likedById, commentId])
+}
