@@ -2,8 +2,6 @@ name = "hono"
 compatibility_date = "2023-12-01"
 
 [vars]
-DATABASE_URL="prisma://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcGlfa2V5IjoiNTEzZDBmMGUtNDAxMi00ZTQ3LWE3ZjYtNTU0MzQ1ZGIyNTMxIiwidGVuYW50X2lkIjoiZGNlM2NjZDBmNThkMjUxNWY1MGNlMDc2ZDBhNWE4ZjI4NTlmMWYwNjZhZGFlYWI4NTJhMGNlMDVmNzU1OGU4ZSIsImludGVybmFsX3NlY3JldCI6ImZjOThiMjRkLTRjODEtNGY1MS04ZjJiLWY0Y2ViY2EwOWU3NCJ9.thrwN5Eg0DxgjCA0DMa8Plgvr5FjxjT0A9JfBfYiSrw"
-JWT_SECRET="random_secret"
 
 # [[kv_namespaces]]
 # binding = "MY_KV_NAMESPACE"
