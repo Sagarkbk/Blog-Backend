@@ -272,16 +272,19 @@ blogRouter.get("/search/:query", async (c) => {
           {
             title: {
               contains: query,
+              mode: "insensitive",
             },
           },
           {
             content: {
               contains: query,
+              mode: "insensitive",
             },
           },
           {
             tag: {
               contains: query,
+              mode: "insensitive",
             },
           },
         ],
