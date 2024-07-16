@@ -13,13 +13,13 @@ export const likeRouter = new Hono<{
 }>();
 
 likeRouter.post("/blogLikes/:blogId", async (c) => {
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-  const authorId = Number(c.get("authorId"));
-  const blogId = Number(c.req.param("blogId"));
-
+  let prisma;
   try {
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
+    const authorId = Number(c.get("authorId"));
+    const blogId = Number(c.req.param("blogId"));
     const existingBlog = await prisma.blog.findUnique({
       where: {
         id: blogId,
@@ -34,16 +34,9 @@ likeRouter.post("/blogLikes/:blogId", async (c) => {
         message: "Blog Not Found",
       });
     }
-    const alreadyLiked = await prisma.blogLike.findUnique({
-      where: {
-        likedById_blogId: {
-          likedById: authorId,
-          blogId: blogId,
-        },
-      },
-    });
-    if (alreadyLiked) {
-      await prisma.blogLike.delete({
+
+    const result = await prisma.$transaction(async (tx) => {
+      const alreadyLiked = await tx.blogLike.findUnique({
         where: {
           likedById_blogId: {
             likedById: authorId,
@@ -51,24 +44,37 @@ likeRouter.post("/blogLikes/:blogId", async (c) => {
           },
         },
       });
-      c.status(200);
-      return c.json({
-        success: true,
-        data: null,
-        message: "Like Removed",
-      });
-    }
-    await prisma.blogLike.create({
-      data: {
-        likedById: authorId,
-        blogId: blogId,
-      },
+
+      if (alreadyLiked) {
+        await tx.blogLike.delete({
+          where: {
+            likedById_blogId: {
+              likedById: authorId,
+              blogId: blogId,
+            },
+          },
+        });
+        return { action: "unlike" };
+      } else {
+        await tx.blogLike.create({
+          data: {
+            likedById: authorId,
+            blogId: blogId,
+          },
+        });
+        return { action: "like" };
+      }
     });
-    c.status(201);
+
+    c.status(200);
     return c.json({
       success: true,
-      data: null,
-      message: "You've Liked this Blog",
+      data:
+        result.action === "like"
+          ? { likedBlog: blogId }
+          : { likeRemovedBlog: blogId },
+      message:
+        result.action === "like" ? "You've Liked this Blog" : "Like Removed",
     });
   } catch (e) {
     c.status(500);
@@ -77,7 +83,7 @@ likeRouter.post("/blogLikes/:blogId", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });
 

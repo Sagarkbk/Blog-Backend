@@ -40,13 +40,13 @@ followRouter.use("/*", async (c, next) => {
 });
 
 followRouter.post("/:followingId", async (c) => {
-  const authorId = Number(c.get("authorId"));
-  const followingId = Number(c.req.param("followingId"));
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-
+  let prisma;
   try {
+    const authorId = Number(c.get("authorId"));
+    const followingId = Number(c.req.param("followingId"));
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
     if (authorId === followingId) {
       c.status(400);
       return c.json({
@@ -63,24 +63,11 @@ followRouter.post("/:followingId", async (c) => {
 
     if (!author || !following) {
       c.status(404);
-      return c.json({
-        success: false,
-        data: null,
-        message: "User not found",
-      });
+      return c.json({ success: false, data: null, message: "User Not Found" });
     }
 
-    const alreadyFollowing = await prisma.follow.findUnique({
-      where: {
-        followerId_followingId: {
-          followerId: authorId,
-          followingId: followingId,
-        },
-      },
-    });
-
-    if (alreadyFollowing) {
-      await prisma.follow.delete({
+    const result = await prisma.$transaction(async (tx) => {
+      const existingFollow = await tx.follow.findUnique({
         where: {
           followerId_followingId: {
             followerId: authorId,
@@ -88,25 +75,38 @@ followRouter.post("/:followingId", async (c) => {
           },
         },
       });
-      c.status(201);
-      return c.json({
-        success: true,
-        data: null,
-        message: "Unfollowed",
-      });
-    }
 
-    await prisma.follow.create({
-      data: {
-        followerId: authorId,
-        followingId: followingId,
-      },
+      if (existingFollow) {
+        await tx.follow.delete({
+          where: {
+            followerId_followingId: {
+              followerId: authorId,
+              followingId: followingId,
+            },
+          },
+        });
+        return { action: "unfollow", followingId };
+      } else {
+        const newFollow = await tx.follow.create({
+          data: {
+            followerId: authorId,
+            followingId: followingId,
+          },
+        });
+        return { action: "follow", followingId: newFollow.followingId };
+      }
     });
-    c.status(201);
+    c.status(200);
     return c.json({
       success: true,
-      data: null,
-      message: "You're now Following this author",
+      data:
+        result.action === "follow"
+          ? { followingId: result.followingId }
+          : { unfollowedId: result.followingId },
+      message:
+        result.action === "follow"
+          ? "You're now following this author"
+          : "Unfollowed",
     });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
@@ -127,28 +127,28 @@ followRouter.post("/:followingId", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });
 
 followRouter.get("/followers/:page", async (c) => {
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-  const authorId = Number(c.get("authorId"));
-  const page = Number(c.req.param("page"));
-  const limit = 5;
-
-  if (page < 1) {
-    c.status(400);
-    return c.json({
-      success: false,
-      data: null,
-      message: "Starting Page is 1",
-    });
-  }
-
+  let prisma;
   try {
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
+    const authorId = Number(c.get("authorId"));
+    const page = Number(c.req.param("page"));
+    const limit = 5;
+
+    if (page < 1) {
+      c.status(400);
+      return c.json({
+        success: false,
+        data: null,
+        message: "Starting Page is 1",
+      });
+    }
     const totalFollowers = await prisma.follow.count({
       where: {
         followingId: authorId,
@@ -204,28 +204,28 @@ followRouter.get("/followers/:page", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });
 
 followRouter.get("/following/:page", async (c) => {
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-  const authorId = Number(c.get("authorId"));
-  const page = Number(c.req.param("page"));
-  const limit = 5;
-
-  if (page < 1) {
-    c.status(400);
-    return c.json({
-      success: false,
-      data: null,
-      message: "Starting Page is 1",
-    });
-  }
-
+  let prisma;
   try {
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
+    const authorId = Number(c.get("authorId"));
+    const page = Number(c.req.param("page"));
+    const limit = 5;
+
+    if (page < 1) {
+      c.status(400);
+      return c.json({
+        success: false,
+        data: null,
+        message: "Starting Page is 1",
+      });
+    }
     const totalFollowing = await prisma.follow.count({
       where: {
         followerId: authorId,
@@ -270,7 +270,7 @@ followRouter.get("/following/:page", async (c) => {
         hasNextPage: page < totalPages,
         hasPreviousPage: page - 1 >= 1,
       },
-      message: "You're Following",
+      message: "Authors/Users You're Following",
     });
   } catch (e) {
     console.log(e);
@@ -281,7 +281,7 @@ followRouter.get("/following/:page", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });
 

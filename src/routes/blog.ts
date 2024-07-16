@@ -45,13 +45,13 @@ blogRouter.route("/comment", commentRouter);
 blogRouter.route("/like", likeRouter);
 
 blogRouter.post("/saveAsDraft", async (c) => {
-  const body = await c.req.json();
-  const authorId = c.get("authorId");
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-
+  let prisma;
   try {
+    const body = await c.req.json();
+    const authorId = c.get("authorId");
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
     const newBlog = await prisma.blog.create({
       data: {
         title: body.title,
@@ -63,7 +63,7 @@ blogRouter.post("/saveAsDraft", async (c) => {
     c.status(201);
     return c.json({
       success: true,
-      data: null,
+      data: { blogId: newBlog.id },
       message: "Blog Saved as Draft",
     });
   } catch (e) {
@@ -75,19 +75,18 @@ blogRouter.post("/saveAsDraft", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });
 
 blogRouter.post("/submit", async (c) => {
-  const body = await c.req.json();
-  const authorId = c.get("authorId");
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-
+  let prisma;
   try {
-    const now = new Date();
+    const body = await c.req.json();
+    const authorId = c.get("authorId");
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
     const newBlog = await prisma.blog.create({
       data: {
         title: body.title,
@@ -100,7 +99,7 @@ blogRouter.post("/submit", async (c) => {
     c.status(201);
     return c.json({
       success: true,
-      data: null,
+      data: { blogId: newBlog.id },
       message: "Blog Created Successfully",
     });
   } catch (e) {
@@ -112,18 +111,18 @@ blogRouter.post("/submit", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });
 
 blogRouter.put("update/:blogId", async (c) => {
-  const body = await c.req.json();
-  const blogId = Number(c.req.param("blogId"));
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-
+  let prisma;
   try {
+    const body = await c.req.json();
+    const blogId = Number(c.req.param("blogId"));
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
     const existingBlog = await prisma.blog.findUnique({
       where: {
         id: blogId,
@@ -151,7 +150,7 @@ blogRouter.put("update/:blogId", async (c) => {
     c.status(200);
     return c.json({
       success: true,
-      data: null,
+      data: { blogId: updatedBlog.id },
       message: "Blog Updated Successfully",
     });
   } catch (e) {
@@ -163,18 +162,18 @@ blogRouter.put("update/:blogId", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });
 
 blogRouter.put("submitDraft/:blogId", async (c) => {
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-  const blogId = Number(c.req.param("blogId"));
-  const authorId = Number(c.get("authorId"));
-
+  let prisma;
   try {
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
+    const blogId = Number(c.req.param("blogId"));
+    const authorId = Number(c.get("authorId"));
     const existingDraft = await prisma.blog.findUnique({
       where: {
         id: blogId,
@@ -190,7 +189,7 @@ blogRouter.put("submitDraft/:blogId", async (c) => {
         message: "Blog not found or already published",
       });
     }
-    await prisma.blog.update({
+    const publishedBlog = await prisma.blog.update({
       where: {
         id: blogId,
         published: false,
@@ -203,7 +202,7 @@ blogRouter.put("submitDraft/:blogId", async (c) => {
     c.status(200);
     return c.json({
       success: true,
-      data: null,
+      data: { blogId: publishedBlog.id },
       message: "Draft published successfully",
     });
   } catch (e) {
@@ -214,16 +213,16 @@ blogRouter.put("submitDraft/:blogId", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });
 
 blogRouter.get("/drafts", async (c) => {
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-
+  let prisma;
   try {
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
     const drafts = await prisma.blog.findMany({
       where: {
         published: false,
@@ -254,17 +253,17 @@ blogRouter.get("/drafts", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });
 
 blogRouter.get("/search/:query", async (c) => {
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-  const query = c.req.param("query");
-
+  let prisma;
   try {
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
+    const query = c.req.param("query");
     const filteredBlogs = await prisma.blog.findMany({
       where: {
         published: true,
@@ -304,7 +303,7 @@ blogRouter.get("/search/:query", async (c) => {
     c.status(200);
     return c.json({
       success: true,
-      data: filteredBlogs,
+      data: { filteredBlogs },
       message: "Filtered Blogs Successfully",
     });
   } catch (e) {
@@ -316,27 +315,27 @@ blogRouter.get("/search/:query", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });
 
 blogRouter.get("/bulk/:page", async (c) => {
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-  const page = Number(c.req.param("page"));
-  const limit = 10;
-
-  if (page < 1) {
-    c.status(400);
-    return c.json({
-      success: false,
-      data: null,
-      message: "Starting Page Number is 1",
-    });
-  }
-
+  let prisma;
   try {
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
+    const page = Number(c.req.param("page"));
+    const limit = 10;
+
+    if (page < 1) {
+      c.status(400);
+      return c.json({
+        success: false,
+        data: null,
+        message: "Starting Page Number is 1",
+      });
+    }
     const totalBlogs = await prisma.blog.count({ where: { published: true } });
     const totalPages = Math.ceil(totalBlogs / limit);
     if (page > totalPages || totalPages === 0) {
@@ -431,17 +430,17 @@ blogRouter.get("/bulk/:page", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });
 
 blogRouter.get("/:blogId", async (c) => {
-  const blogId = Number(c.req.param("blogId"));
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-
+  let prisma;
   try {
+    const blogId = Number(c.req.param("blogId"));
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
     const existingBlog = await prisma.blog.findFirst({
       where: {
         id: blogId,
@@ -483,7 +482,7 @@ blogRouter.get("/:blogId", async (c) => {
     c.status(200);
     return c.json({
       success: true,
-      data: blog,
+      data: { blog },
       message: "Found the Blog",
     });
   } catch (e) {
@@ -495,17 +494,17 @@ blogRouter.get("/:blogId", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });
 
 blogRouter.delete("/delete/:blogId", async (c) => {
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-  const blogId = Number(c.req.param("blogId"));
-
+  let prisma;
   try {
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
+    const blogId = Number(c.req.param("blogId"));
     const blog = await prisma.blog.findUnique({
       where: {
         id: blogId,
@@ -519,7 +518,7 @@ blogRouter.delete("/delete/:blogId", async (c) => {
         message: "Blog not found",
       });
     }
-    await prisma.blog.delete({
+    const deletedBlog = await prisma.blog.delete({
       where: {
         id: blogId,
       },
@@ -527,7 +526,7 @@ blogRouter.delete("/delete/:blogId", async (c) => {
     c.status(200);
     return c.json({
       success: true,
-      data: null,
+      data: { blogId: deletedBlog.id },
       message: "Blog deleted successfully",
     });
   } catch (e) {
@@ -539,6 +538,6 @@ blogRouter.delete("/delete/:blogId", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });

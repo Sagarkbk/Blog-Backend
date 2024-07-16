@@ -14,18 +14,18 @@ export const userRouter = new Hono<{
 userRouter.route("/follow", followRouter);
 
 userRouter.post("/signup", async (c) => {
-  const body = await c.req.json();
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-
+  let prisma;
   try {
+    const body = await c.req.json();
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
     if (!(body.username && body.email && body.password)) {
       c.status(400);
       return c.json({
         success: false,
         data: null,
-        message: "Invalid Data",
+        message: "Insufficient Data",
       });
     }
     const existingUser = await prisma.user.findFirst({
@@ -38,7 +38,7 @@ userRouter.post("/signup", async (c) => {
       return c.json({
         success: false,
         data: null,
-        message: "Email already in use",
+        message: "Email Already Taken",
       });
     }
     const newUser = await prisma.user.create({
@@ -68,16 +68,18 @@ userRouter.post("/signup", async (c) => {
       data: null,
       message: "Internal Server Issue",
     });
+  } finally {
+    if (prisma) await prisma.$disconnect();
   }
 });
 
 userRouter.post("/signin", async (c) => {
-  const body = await c.req.json();
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-
+  let prisma;
   try {
+    const body = await c.req.json();
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
     const existingUser = await prisma.user.findFirst({
       where: {
         email: body.email,
@@ -112,15 +114,17 @@ userRouter.post("/signin", async (c) => {
       data: null,
       message: "Internal Server Issue",
     });
+  } finally {
+    if (prisma) await prisma.$disconnect();
   }
 });
 
 userRouter.get("/users", async (c) => {
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-
+  let prisma;
   try {
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
     const users = await prisma.user.findMany();
     c.status(200);
     return c.json({
@@ -136,6 +140,6 @@ userRouter.get("/users", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });

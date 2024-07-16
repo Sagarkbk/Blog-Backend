@@ -16,5 +16,4 @@ export default app;
 
 // Remaining:
 
-// Search not working if cases are different i.e., Uppercase and Lowercase
 // Add Zod Validation and publish on npm to use at frontend
