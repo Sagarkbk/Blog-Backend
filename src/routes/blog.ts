@@ -4,6 +4,7 @@ import { withAccelerate } from "@prisma/extension-accelerate";
 import { verify } from "hono/jwt";
 import { commentRouter } from "./comment";
 import { likeRouter } from "./like";
+import { postBlogInput } from "@sagarkbk/blog-common";
 
 export const blogRouter = new Hono<{
   Bindings: {
@@ -48,6 +49,21 @@ blogRouter.post("/saveAsDraft", async (c) => {
   let prisma;
   try {
     const body = await c.req.json();
+    const inputValidation = postBlogInput.safeParse(body);
+    if (!inputValidation.success) {
+      c.status(400);
+      return c.json({
+        success: false,
+        data: null,
+        message: inputValidation.error.flatten().fieldErrors.title
+          ? "Title : " + inputValidation.error.flatten().fieldErrors.title
+          : inputValidation.error.flatten().fieldErrors.content
+          ? "Content : " + inputValidation.error.flatten().fieldErrors.content
+          : inputValidation.error.flatten().fieldErrors.tag
+          ? "Tag : " + inputValidation.error.flatten().fieldErrors.tag
+          : "Incorrect Inputs",
+      });
+    }
     const authorId = c.get("authorId");
     prisma = new PrismaClient({
       datasourceUrl: c.env.DATABASE_URL,
@@ -83,6 +99,21 @@ blogRouter.post("/submit", async (c) => {
   let prisma;
   try {
     const body = await c.req.json();
+    const inputValidation = postBlogInput.safeParse(body);
+    if (!inputValidation.success) {
+      c.status(400);
+      return c.json({
+        success: false,
+        data: null,
+        message: inputValidation.error.flatten().fieldErrors.title
+          ? "Title : " + inputValidation.error.flatten().fieldErrors.title
+          : inputValidation.error.flatten().fieldErrors.content
+          ? "Content : " + inputValidation.error.flatten().fieldErrors.content
+          : inputValidation.error.flatten().fieldErrors.tag
+          ? "Tag : " + inputValidation.error.flatten().fieldErrors.tag
+          : "Incorrect Inputs",
+      });
+    }
     const authorId = c.get("authorId");
     prisma = new PrismaClient({
       datasourceUrl: c.env.DATABASE_URL,
@@ -119,6 +150,21 @@ blogRouter.put("update/:blogId", async (c) => {
   let prisma;
   try {
     const body = await c.req.json();
+    const inputValidation = postBlogInput.safeParse(body);
+    if (!inputValidation.success) {
+      c.status(400);
+      return c.json({
+        success: false,
+        data: null,
+        message: inputValidation.error.flatten().fieldErrors.title
+          ? "Title : " + inputValidation.error.flatten().fieldErrors.title
+          : inputValidation.error.flatten().fieldErrors.content
+          ? "Content : " + inputValidation.error.flatten().fieldErrors.content
+          : inputValidation.error.flatten().fieldErrors.tag
+          ? "Tag : " + inputValidation.error.flatten().fieldErrors.tag
+          : "Incorrect Inputs",
+      });
+    }
     const blogId = Number(c.req.param("blogId"));
     prisma = new PrismaClient({
       datasourceUrl: c.env.DATABASE_URL,

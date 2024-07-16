@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client/edge";
 import { withAccelerate } from "@prisma/extension-accelerate";
 import { sign } from "hono/jwt";
 import { followRouter } from "./follow";
+import { signinInput, signupInput } from "@sagarkbk/blog-common";
 
 export const userRouter = new Hono<{
   Bindings: {
@@ -17,17 +18,24 @@ userRouter.post("/signup", async (c) => {
   let prisma;
   try {
     const body = await c.req.json();
-    prisma = new PrismaClient({
-      datasourceUrl: c.env.DATABASE_URL,
-    }).$extends(withAccelerate());
-    if (!(body.username && body.email && body.password)) {
+    const inputValidation = signupInput.safeParse(body);
+    if (!inputValidation.success) {
       c.status(400);
       return c.json({
         success: false,
         data: null,
-        message: "Insufficient Data",
+        message: inputValidation.error.flatten().fieldErrors.username
+          ? "Username : " + inputValidation.error.flatten().fieldErrors.username
+          : inputValidation.error.flatten().fieldErrors.email
+          ? "Email : " + inputValidation.error.flatten().fieldErrors.email
+          : inputValidation.error.flatten().fieldErrors.password
+          ? "Password : " + inputValidation.error.flatten().fieldErrors.password
+          : "Incorrect Inputs",
       });
     }
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
     const existingUser = await prisma.user.findFirst({
       where: {
         email: body.email,
@@ -77,6 +85,19 @@ userRouter.post("/signin", async (c) => {
   let prisma;
   try {
     const body = await c.req.json();
+    const inputValidation = signinInput.safeParse(body);
+    if (!inputValidation.success) {
+      c.status(400);
+      return c.json({
+        success: false,
+        data: null,
+        message: inputValidation.error.flatten().fieldErrors.email
+          ? "Email : " + inputValidation.error.flatten().fieldErrors.email
+          : inputValidation.error.flatten().fieldErrors.password
+          ? "Password : " + inputValidation.error.flatten().fieldErrors.password
+          : "Incorrect Inputs",
+      });
+    }
     prisma = new PrismaClient({
       datasourceUrl: c.env.DATABASE_URL,
     }).$extends(withAccelerate());

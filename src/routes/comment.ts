@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { PrismaClient } from "@prisma/client/edge";
 import { withAccelerate } from "@prisma/extension-accelerate";
+import { postCommentInput } from "@sagarkbk/blog-common";
 
 export const commentRouter = new Hono<{
   Bindings: {
@@ -15,10 +16,21 @@ export const commentRouter = new Hono<{
 commentRouter.post("/postComment/:blogId", async (c) => {
   let prisma;
   try {
+    const body = await c.req.json();
+    const inputValidation = postCommentInput.safeParse(body);
+    if (!inputValidation.success) {
+      c.status(400);
+      return c.json({
+        success: false,
+        data: null,
+        message: inputValidation.error.flatten().fieldErrors.comment
+          ? "Comment : " + inputValidation.error.flatten().fieldErrors.comment
+          : "Incorrect Inputs",
+      });
+    }
     prisma = new PrismaClient({
       datasourceUrl: c.env.DATABASE_URL,
     }).$extends(withAccelerate());
-    const body = await c.req.json();
     const authorId = Number(c.get("authorId"));
     const blogId = Number(c.req.param("blogId"));
     const existingBlog = await prisma.blog.findFirst({
