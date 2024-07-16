@@ -505,12 +505,12 @@ blogRouter.delete("/delete/:blogId", async (c) => {
       datasourceUrl: c.env.DATABASE_URL,
     }).$extends(withAccelerate());
     const blogId = Number(c.req.param("blogId"));
-    const blog = await prisma.blog.findUnique({
+    const existingBlog = await prisma.blog.findUnique({
       where: {
         id: blogId,
       },
     });
-    if (!blog) {
+    if (!existingBlog) {
       c.status(404);
       return c.json({
         success: false,

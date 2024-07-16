@@ -88,14 +88,14 @@ likeRouter.post("/blogLikes/:blogId", async (c) => {
 });
 
 likeRouter.post("/commentLikes/:blogId/:commentId", async (c) => {
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-  const authorId = Number(c.get("authorId"));
-  const blogId = Number(c.req.param("blogId"));
-  const commentId = Number(c.req.param("commentId"));
-
+  let prisma;
   try {
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
+    const authorId = Number(c.get("authorId"));
+    const blogId = Number(c.req.param("blogId"));
+    const commentId = Number(c.req.param("commentId"));
     const existingBlog = await prisma.blog.findUnique({
       where: {
         id: blogId,
@@ -125,16 +125,8 @@ likeRouter.post("/commentLikes/:blogId/:commentId", async (c) => {
         message: "Comment Not Found",
       });
     }
-    const alreadyLiked = await prisma.commentLike.findUnique({
-      where: {
-        likedById_commentId: {
-          likedById: authorId,
-          commentId: commentId,
-        },
-      },
-    });
-    if (alreadyLiked) {
-      await prisma.commentLike.delete({
+    const result = await prisma.$transaction(async (tx) => {
+      const alreadyLiked = await tx.commentLike.findUnique({
         where: {
           likedById_commentId: {
             likedById: authorId,
@@ -142,24 +134,36 @@ likeRouter.post("/commentLikes/:blogId/:commentId", async (c) => {
           },
         },
       });
-      c.status(200);
-      return c.json({
-        success: true,
-        data: null,
-        message: "Like Removed",
-      });
-    }
-    await prisma.commentLike.create({
-      data: {
-        likedById: authorId,
-        commentId: commentId,
-      },
+
+      if (alreadyLiked) {
+        await tx.commentLike.delete({
+          where: {
+            likedById_commentId: {
+              likedById: authorId,
+              commentId: commentId,
+            },
+          },
+        });
+        return { action: "unlike" };
+      } else {
+        await tx.commentLike.create({
+          data: {
+            likedById: authorId,
+            commentId: commentId,
+          },
+        });
+        return { action: "like" };
+      }
     });
-    c.status(201);
+    c.status(200);
     return c.json({
       success: true,
-      data: null,
-      message: "You've Liked this Comment",
+      data:
+        result.action === "like"
+          ? { likedComment: commentId }
+          : { removedLikeOnComment: commentId },
+      message:
+        result.action === "like" ? "You've Liked this Comment" : "Like Removed",
     });
   } catch (e) {
     console.log(e);
@@ -169,18 +173,19 @@ likeRouter.post("/commentLikes/:blogId/:commentId", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });
 
 likeRouter.get("/blogLikes/:blogId", async (c) => {
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-  const authorId = Number(c.get("authorId"));
-  const blogId = Number(c.req.param("blogId"));
-
+  let prisma;
   try {
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
+    const authorId = Number(c.get("authorId"));
+    const blogId = Number(c.req.param("blogId"));
+
     const existingBlog = await prisma.blog.findUnique({
       where: {
         id: blogId,
@@ -233,19 +238,20 @@ likeRouter.get("/blogLikes/:blogId", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });
 
 likeRouter.get("/commentLikes/:blogId/:commentId", async (c) => {
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-  const authorId = Number(c.get("authorId"));
-  const blogId = Number(c.req.param("blogId"));
-  const commentId = Number(c.req.param("commentId"));
-
+  let prisma;
   try {
+    prisma = new PrismaClient({
+      datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
+    const authorId = Number(c.get("authorId"));
+    const blogId = Number(c.req.param("blogId"));
+    const commentId = Number(c.req.param("commentId"));
+
     const existingBlog = await prisma.blog.findUnique({
       where: {
         id: blogId,
@@ -313,6 +319,6 @@ likeRouter.get("/commentLikes/:blogId/:commentId", async (c) => {
       message: "Internal Server Issue",
     });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   }
 });
